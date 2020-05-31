@@ -252,7 +252,7 @@
         ctx = canvas.getContext("2d"),
         ucanvas = get("upcoming"),
         uctx = ucanvas.getContext("2d"),
-        speed = { start: 0.6, decrement: 0.005, min: 0.1 }, // how long before piece drops by 1 row (seconds)
+        speed = { start: 0.1, decrement: 0.005, min: 0.1 }, // how long before piece drops by 1 row (seconds)
         nx = 10, // width of tetris court (in blocks)
         ny = 20, // height of tetris court (in blocks)
         nu = 5; // width/height of upcoming preview (in blocks)
@@ -274,6 +274,7 @@
         rows, // number of completed rows in the current game
         step; // how long before current piece drops by 1 row
 
+      var pieceDropped = true;
       //-------------------------------------------------------------------------
       // tetris pieces
       //
@@ -375,14 +376,14 @@
             i,
             i,
             i,
-            // j,
-            // j,
-            // j,
-            // j,
-            // l,
-            // l,
-            // l,
-            // l,
+            j,
+            j,
+            j,
+            j,
+            l,
+            l,
+            l,
+            l,
             o,
             o,
             o,
@@ -395,10 +396,10 @@
             t,
             t,
             t,
-            // z,
-            // z,
-            // z,
-            // z,
+            z,
+            z,
+            z,
+            z,
           ];
         var type = pieces.splice(random(0, pieces.length - 1), 1)[0];
         return {
@@ -408,317 +409,305 @@
           y: 0,
         };
       }
+      function clone(obj) {
+        var copy;
 
-      //-------------------------------------------------------------------------
-      // Particles flow optimization
-      //-------------------------------------------------------------------------
-      var numberOfPositionChanges = 0;
+        // Handle the 3 simple types, and null or undefined
+        if (null == obj || "object" != typeof obj) return obj;
 
-      function resetNumberOfPositionsChanges() {
-        numberOfPositionChanges = 0;
+        // Handle Date
+        if (obj instanceof Date) {
+          copy = new Date();
+          copy.setTime(obj.getTime());
+          return copy;
+        }
+
+        // Handle Array
+        if (obj instanceof Array) {
+          copy = [];
+          for (var i = 0, len = obj.length; i < len; i++) {
+            copy[i] = clone(obj[i]);
+          }
+          return copy;
+        }
+
+        // Handle Object
+        if (obj instanceof Object) {
+          copy = {};
+          for (var attr in obj) {
+            if (obj.hasOwnProperty(attr)) copy[attr] = clone(obj[attr]);
+          }
+          return copy;
+        }
+
+        throw new Error("Unable to copy obj! Its type isn't supported.");
+      }
+      //--------------
+      //Players logic
+      //--------------
+      //Coefficients
+      var fitnessBest = 10,
+        secondBest = 0,
+        coef1 = -0.279,
+        coef1Best = 2,
+        coef1SecondBest = 1,
+        coef2 = 3.12 ,
+        coef2Best = 2,
+        coef2SecondBest = 1,
+        coef3 = 0.741,
+        coef3Best = 2,
+        coef3SecondBest = 1,
+        coef4 = 1.9859999999999998,
+        coef4Best = 2,
+        coef4SecondBest = 1,
+        coef5 = 3.0749999999999997,
+        coef5Best = 2,
+        coef5SecondBest = 1,
+        coef6 = 3.0749999999999997,
+        coef6Best = 2,
+        coef6SecondBest = 1,
+        coef7 = 0.28200000000000003,
+        coef7Best = 2,
+        coef7SecondBest = 1;
+
+      function logCoefficientsBest() {
+        console.log("===================");
+        console.log("1");
+        console.log(coef1Best);
+        console.log("2");
+        console.log(coef2Best);
+        console.log("3");
+        console.log(coef3Best);
+        console.log("4");
+        console.log(coef4Best);
+        console.log("5");
+        console.log(coef5Best);
+        console.log("6");
+        console.log(coef6Best);
+        console.log("7");
+        console.log(coef7Best);
+        console.log("===================");
+      }
+      function logCoefficients() {
+        console.log("===================");
+        console.log("1");
+        console.log(coef1);
+        console.log("2");
+        console.log(coef2);
+        console.log("3");
+        console.log(coef3);
+        console.log("4");
+        console.log(coef4);
+        console.log("5");
+        console.log(coef5);
+        console.log("6");
+        console.log(coef6);
+        console.log("7");
+        console.log(coef7);
+        console.log("===================");
       }
 
-      function invokeParticlesFlowOptimization(frame) {
-        if (actions.length === 0) {
-          var bestFitness = -100;
-          var bestFitnessPosition = 0;
-          var secondBestFitness = -100;
-          var secondBestFitnessPosition = 0;
-          for (
-            var cellForEvaluation = 0;
-            cellForEvaluation <= 9;
-            cellForEvaluation++
-          ) {
-            var fitnessFunctionResult = getFitnessForCell(cellForEvaluation);
-            if (fitnessFunctionResult > bestFitness) {
-              bestFitness = fitnessFunctionResult;
-              bestFitnessPosition = cellForEvaluation;
-            } else if (fitnessFunctionResult > secondBestFitness) {
-              secondBestFitness = fitnessFunctionResult;
-              secondBestFitnessPosition = cellForEvaluation;
-            }
-          }
-          console.log(bestFitness);
-          console.log(numberOfPositionChanges);
-          if (bestFitness < 0) {
-            actions.push(DIR.UP);
-          } else {
-            if (actions.length === 0) {
-              var moveActions =
-                1 * random(1, 1) * (bestFitnessPosition - current.x) +
-                1 * random(1, 1) * (secondBestFitnessPosition - current.x);
-              if (moveActions > 0) {
-                for (
-                  var actionsCounter = 0;
-                  actionsCounter < moveActions;
-                  actionsCounter++
-                ) {
-                  actions.push(DIR.RIGHT);
-                }
-              } else if (moveActions < 0) {
-                for (
-                  var actionsCounter = moveActions;
-                  actionsCounter < 0;
-                  actionsCounter++
-                ) {
-                  actions.push(DIR.LEFT);
-                }
-              }
-            }
-          }
+
+      function updateCoefficients() {
+        if (score > fitnessBest) {
+          secondBest = fitnessBest;
+          fitnessBest = score;
+
+          coef1SecondBest = coef1Best;
+          coef1Best = coef1;
+
+          coef2SecondBest = coef2Best;
+          coef2Best = coef2;
+
+          coef3SecondBest = coef3Best;
+          coef3Best = coef3;
+
+          coef4SecondBest = coef4Best;
+          coef4Best = coef4;
+
+          coef5SecondBest = coef5Best;
+          coef5Best = coef5;
+
+          coef6SecondBest = coef6Best;
+          coef6Best = coef6;
+
+          coef7SecondBest = coef7Best;
+          coef7Best = coef7;
         }
+        coef1 = PSO(coef1Best, coef1SecondBest);
+        coef2 = PSO(coef2Best, coef2SecondBest);
+        coef3 = PSO(coef3Best, coef3SecondBest);
+        coef4 = PSO(coef4Best, coef4SecondBest);
+        coef5 = PSO(coef5Best, coef5SecondBest);
+        coef6 = PSO(coef6Best, coef6SecondBest);
+        coef7 = PSO(coef7Best, coef7SecondBest);
       }
 
-      //Fitness Function
-      function getFitnessForCell(cellXCoordinate) {
-        var direction = current.dir;
-        var x = cellXCoordinate; //current.x;
-        var fitResults = 0;
-        if (current.type === i) {
-          if (
-            current.type.blocks[direction] === 0x0f00 ||
-            current.type.blocks[direction] === 0x00f0
-          ) {
-            if (x > 6) {
-              fitResults = -100;
-            } else if (
-              x <= 6 &&
-              !blocks[x] &&
-              !blocks[x + 1] &&
-              !blocks[x + 2] &&
-              !blocks[x + 3]
-            ) {
-              fitResults = 6;
-            } else if (
-              x <= 6 &&
-              blocks[x] &&
-              blocks[x + 1] &&
-              blocks[x + 2] &&
-              blocks[x + 3] &&
-              blocks[x].length === blocks[x + 1].length &&
-              blocks[x + 1].length === blocks[x + 2].length &&
-              blocks[x + 2].length === blocks[x + 3].length
-            ) {
-              fitResults = 4;
-            } else if (x <= 6) {
-              for (var counter = x; counter - x < 4; counter++) {
-                if (
-                  blocks[counter] &&
-                  blocks[counter + 1] &&
-                  blocks[counter].length === blocks[counter + 1].length
-                )
-                  fitResults++;
-                else {
-                  fitResults -= 4;
-                  break;
-                }
+      function PSO(gbest, pbest) {
+        let random = (Math.random() * (0.12 + 0.02) - 0.02).toFixed(4);
+        return 10 * random * (gbest - pbest);
+      }
+
+      function getHighestElement(column) {
+        if (column != undefined) {
+          for (var y = 0; y < 20; y++) {
+            if (column[y] !== undefined) return y;
+          }
+        }
+        return 19;
+      }
+
+      function setBlockToField(x, y, type, field) {
+        field[x] = field[x] || [];
+        field[x][y] = type;
+      }
+
+      function evaluationFunction(x, dir) {
+        let field = clone(blocks);
+        var y = getHighestElement(field[x]);
+
+        while (occupied(current.type, x, y, dir)) {
+          y -= 1;
+          if (y === 0) break;
+        }
+        eachblock(current.type, x, y, dir, function (xf, yf) {
+          setBlockToField(xf, yf, current.type, field);
+        });
+        var evaluationResult = 0;
+        evaluationResult += coef1 * getEmptyHolesInRowsCriteria(field);
+        evaluationResult += coef2 * getHighestCellCriteria(field);
+        evaluationResult += coef3 * removedLinesCriteria(field);
+        evaluationResult += coef4 * altitudeDifferenceCriteria(field);
+        evaluationResult += coef5 * maximumWellDepthCriteria(field);
+        evaluationResult += coef6 * verticallyConnectedHolesCriteria(field);
+        evaluationResult += coef7 * adjastentFilledCellsCriteria(field);
+        return evaluationResult;
+      }
+
+      function getHighestCellInField(field) {
+        var highestCell = getHighestElement(field[0]);
+        for (var i = 0; i < 10; i++) {
+          var rowsHighestCell = getHighestElement(field[i]);
+          if (highestCell > rowsHighestCell) highestCell = rowsHighestCell;
+        }
+        return highestCell;
+      }
+
+      function getLowestCellInField(field) {
+        var lowestCell = getHighestElement(field[0]);
+        for (var i = 0; i < 10; i++) {
+          var rowsLowestCell = getHighestElement(field[i]);
+          if (lowestCell < rowsLowestCell) lowestCell = rowsLowestCell;
+        }
+        return lowestCell;
+      }
+
+      function getEmptyHolesInRowsCriteria(field) {
+        var holesNumber = 0;
+        var highestCell = getHighestCellInField(field);
+        for (var y = 19; y > highestCell; y--) {
+          for (var x = 0; x < 10; x++) {
+            if (field[x] != undefined && field[x][y] != undefined)
+              holesNumber++;
+          }
+        }
+        return holesNumber;
+      }
+
+      function getHighestCellCriteria(field) {
+        return 20 - getHighestCellInField(field); //For calculation purpose result is inverted
+      }
+
+      function removedLinesCriteria(field) {
+        var highestCell = getHighestCellInField(field);
+        var removedRowsNumber = 0;
+        for (var y = 19; y > highestCell; y--) {
+          var rowFilled = true;
+          for (var x = 0; x < 10; x++) {
+            rowFilled &= field[x] != undefined && field[x][y] != undefined;
+          }
+          if (rowFilled) removedRowsNumber++;
+        }
+        return removedRowsNumber;
+      }
+
+      function altitudeDifferenceCriteria(field) {
+        return getLowestCellInField(field) - getHighestCellInField(field);
+      }
+
+      function maximumWellDepthCriteria(field) {
+        var maximumWellDepth = 0;
+        for (var x = 0; x < 10; x++) {
+          var highestCell = getHighestElement(field[x]);
+          var wellDepth = 0;
+          for (var y = 19; y > highestCell; y--) {
+            if (field[x] == undefined && field[x][y] == undefined) {
+              wellDepth++;
+            } else if (field[x] != undefined && field[x][y] != undefined) {
+              if (maximumWellDepth < wellDepth) {
+                maximumWellDepth = wellDepth;
               }
+              wellDepth = 0;
             }
-          } else {
-            if (!blocks[x]) {
-              fitResults = 4;
-            } else if (x <= 8 && x >= 1 && blocks[x - 1] && blocks[x + 1]) {
-              if (blocks[x]) {
-                if (
-                  blocks[x - 1].length > blocks[x].length &&
-                  blocks[x + 1].length > blocks[x].length
-                ) {
-                  var maxNearestLength = blocks[x - 1].length;
-                  if (maxNearestLength < blocks[x + 1].length) {
-                    maxNearestLength = blocks[x + 1].length;
-                  }
-                  fitResults = maxNearestLength - blocks[x].length;
-                }
+          }
+        }
+        return maximumWellDepth;
+      }
+
+      function verticallyConnectedHolesCriteria(field) {
+        var numberOfVerticallyConnectedHoles = 0;
+        for (var x = 0; x < 10; x++) {
+          var highestCell = getHighestElement(field[x]);
+          var localNumberOfConnectedHoles = -1;
+          for (var y = 19; y > highestCell; y--) {
+            if (field[x] != undefined && field[x][y] == undefined) {
+              localNumberOfConnectedHoles++;
+            }
+            if (
+              field[x] != undefined &&
+              field[x][y] != undefined &&
+              localNumberOfConnectedHoles > -1
+            ) {
+              numberOfVerticallyConnectedHoles += localNumberOfConnectedHoles;
+              localNumberOfConnectedHoles = -1;
+            }
+          }
+        }
+        return numberOfVerticallyConnectedHoles;
+      }
+
+      function adjastentFilledCellsCriteria(field) {
+        var numberOfAdjastentCells = 0;
+        var highestCell = getHighestCellInField(field);
+        for (var x = 0; x < 9; x++) {
+          for (var y = 19; y > highestCell; y--) {
+            if (field[x] != undefined && field[x][y] == undefined) {
+              if (x > 0) {
+                if (field[x - 1] != undefined && field[x - 1][y] != undefined)
+                  numberOfAdjastentCells++;
               }
-            } else if (x === 0 && blocks[x]) {
-              if (blocks[x + 1]) {
-                fitResults = blocks[x + 1].length - blocks[x].length;
+              if (x < 0) {
+                if (field[x + 1] != undefined && field[x + 1][y] != undefined)
+                  numberOfAdjastentCells++;
               }
-            } else if (x === 9 && blocks[x]) {
-              if (blocks[x - 1]) {
-                fitResults = blocks[x - 1].length - blocks[x].length;
+              if (y < 19) {
+                if (field[x] != undefined && field[x][y + 1] != undefined)
+                  numberOfAdjastentCells++;
+              }
+              if (y > 0) {
+                if (field[x] != undefined && field[x][y - 1] != undefined)
+                  numberOfAdjastentCells++;
               }
             }
           }
-          if (blocks[x]) fitResults -= blocks[x].length;
-          console.log("i");
         }
-        if (current.type === j) {
-          console.log("j");
-        }
-        if (current.type === l) {
-          console.log("l");
-        }
-        if (current.type === o) {
-          if (x <= 8) {
-            if (!blocks[x] && !blocks[x + 1]) {
-              fitResults = 4;
-            }
-            if (
-              blocks[x] &&
-              blocks[x + 1] &&
-              blocks[x].length == blocks[x + 1].length
-            ) {
-              fitResults = 4;
-            } else {
-              fitResults = 0;
-            }
-          } else {
-            fitResults = -100;
-          }
-          if (blocks[x]) fitResults -= blocks[x].length;
-          console.log("o");
-        }
-        if (current.type === s) {
-          if (
-            current.type.blocks[direction] === 0x8c40 ||
-            current.type.blocks[direction] === 0x4620
-          ) {
-            if (x > 6) {
-              fitResults = -100;
-            } else if (
-              (!blocks[x] && !blocks[x + 1]) ||
-              (blocks[x] &&
-                blocks[x + 1] &&
-                blocks[x].length == blocks[x + 1].length)
-            ) {
-              if (
-                blocks[x + 2] &&
-                blocks[x + 3] &&
-                blocks[x + 2].length == blocks[x + 3].length
-              ) {
-                if (blocks[x + 2].length === blocks[x].length + 1) {
-                  fitResults = 4;
-                }
-                0x6c00;
-              }
-            }
-          } else if (
-            current.type.blocks[direction] === 0x06c0 ||
-            current.type.blocks[direction] === 0x6c00
-          ) {
-            if (x > 8) {
-              fitResults = -100;
-            }
-            if (!blocks[x] && !blocks[x + 1]) {
-              fitResult = 1;
-            }
-            if (blocks[x + 1]) {
-              if (blocks[x + 1].length === 1 && !blocks[x]) {
-                fitResults = 4;
-              }
-              if (blocks[x]) {
-                if (blocks[x + 1].length - 1 === blocks[x].length) {
-                  fitResults = 4;
-                }
-              }
-            }
-          } else if (current.type.blocks[direction] === 0x6c00) {
-            if (x > 8) {
-              fitResults = -100;
-            }
-            if (!blocks[x] && !blocks[x + 1]) {
-              fitResult = 1;
-            }
-            if (blocks[x]) {
-              if (blocks[x].length === 1 && !blocks[x + 1]) {
-                fitResults = 4;
-              }
-              if (blocks[x + 1]) {
-                if (blocks[x].length - 1 === blocks[x + 1].length) {
-                  fitResults = 4;
-                }
-              }
-            }
-          }
-          if (blocks[x]) {
-            fitResults -= blocks[x].length;
-          }
-          console.log("s");
-        }
-        if (current.type === t) {
-          if (current.type.blocks[direction] === 0x0e40) {
-            if (x > 8) {
-              fitResults = -100;
-            }
-            if (!blocks[x] && blocks[x + 1] && blocks[x + 1].length === 1) {
-              fitResults = 6;
-            }
-            if (
-              blocks[x] &&
-              blocks[x + 1] &&
-              blocks[x].length + 1 === blocks[x + 1].length
-            ) {
-              fitResults = 4;
-            }
-          } else if (current.type.blocks[direction] === 0x4c40) {
-            if (x > 7) {
-              fitResults = -100;
-            }
-            if (
-              blocks[x] &&
-              !blocks[x + 1] &&
-              blocks[x + 2] &&
-              blocks[x].length === 1 &&
-              blocks[x + 2].length === 1
-            ) {
-              fitResults = 6;
-            }
-            if (
-              blocks[x] &&
-              blocks[x + 1] &&
-              blocks[x + 2] &&
-              blocks[x].length + 1 === blocks[x + 1].length &&
-              blocks[x + 2].length + 1 === blocks[x + 1].length
-            ) {
-              fitResults = 4;
-            }
-          } else if (current.type.blocks[direction] === 0x4e00) {
-            if (x > 8) {
-              fitResults = -100;
-            }
-            if (blocks[x] && !blocks[x + 1] && blocks[x].length === 1) {
-              fitResults = 6;
-            }
-            if (
-              blocks[x] &&
-              blocks[x + 1] &&
-              blocks[x].length + 1 === blocks[x].length + 1
-            ) {
-              fitResults = 4;
-            }
-          } else if (current.type.blocks[direction] === 0x4640) {
-            if (x > 7) {
-              fitResults = -100;
-            }
-            if (
-              blocks[x] &&
-              blocks[x + 1] &&
-              blocks[x + 2] &&
-              blocks[x].length === blocks[x + 1].length &&
-              blocks[x + 1].length === blocks[x + 2].length
-            ) {
-              fitResults = 4;
-            }
-            if (!blocks[x] && !blocks[x + 1] && !blocks[x + 2]) {
-              fitResults = 6;
-            }
-          }
-          if (blocks[x]) {
-            fitResults -= blocks[x].length;
-          }
-          console.log("t");
-        }
-        if (current.type === z) {
-          console.log("z");
-        }
-        return fitResults;
+        return numberOfAdjastentCells;
       }
 
       //-------------------------------------------------------------------------
       // GAME LOOP
       //-------------------------------------------------------------------------
-
+      var numberOfIterations = 1000;
       function run() {
         showStats(); // initialize FPS counter
         addEvents(); // attach keydown and resize events
@@ -731,8 +720,42 @@
           stats.update();
           last = now;
           requestAnimationFrame(frame, canvas);
-          if (playing) {
-            invokeParticlesFlowOptimization();
+
+          if (playing && pieceDropped) {
+            pieceDropped = false;
+            var lowestScore = 1000000;
+            var bestX = 0;
+            var bestPosition = 0;
+            for (var direction = 0; direction < 4; direction++) {
+              for (var position = 0; position < 10; position++) {
+                var score = evaluationFunction(position, direction);
+                if (score < lowestScore) {
+                  lowestScore = score;
+                  bestX = position;
+                  bestPosition = direction;
+                }
+              }
+            }
+            if (current.dir != bestPosition) {
+              if (current.dir < bestPosition) {
+                for (var j = current.dir; j < bestPosition; j++) {
+                  actions.push(DIR.UP);
+                }
+              } else if (current.dir > bestPosition) {
+                for (var j = current.dir; j > bestPosition; j--) {
+                  actions.push(DIR.UP);
+                }
+              }
+            }
+            if (current.x != bestX) {
+              if (current.x < bestX) {
+                for (var j = current.x; j < bestX; j++) {
+                  actions.push(DIR.RIGHT);
+                }
+              } else if (current.x > bestX) {
+                for (var j = current.x; j > bestX; j--) actions.push(DIR.LEFT);
+              }
+            }
           }
         }
 
@@ -797,6 +820,13 @@
       //-------------------------------------------------------------------------
       // GAME LOGIC
       //-------------------------------------------------------------------------
+      function sleep(milliseconds) {
+        const date = Date.now();
+        let currentDate = null;
+        do {
+          currentDate = Date.now();
+        } while (currentDate - date < milliseconds);
+      }
 
       function play() {
         hide("start");
@@ -804,9 +834,17 @@
         playing = true;
       }
       function lose() {
+        alert('lost');
         show("start");
+        actions = [];
         setVisualScore();
         playing = false;
+        numberOfIterations--;
+        if (numberOfIterations > 0) {
+          //updateCoefficients();
+          logCoefficients();
+          //play();
+        } else logCoefficientsBest();
       }
 
       function setVisualScore(n) {
@@ -937,7 +975,6 @@
           setCurrentPiece(next);
           setNextPiece(randomPiece());
           clearActions();
-          resetNumberOfPositionsChanges();
           if (occupied(current.type, current.x, current.y, current.dir)) {
             lose();
           }
@@ -945,6 +982,7 @@
       }
 
       function dropPiece() {
+        pieceDropped = true;
         eachblock(current.type, current.x, current.y, current.dir, function (
           x,
           y
