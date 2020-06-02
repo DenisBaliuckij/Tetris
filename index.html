@@ -534,6 +534,23 @@
           coef7SecondBest = coef7Best;
           coef7Best = coef7;
         }
+        else if (score > secondBest) {
+          secondBest = score;
+
+          coef1SecondBest = coef1;
+
+          coef2SecondBest = coef2;
+
+          coef3SecondBest = coef3;
+
+          coef4SecondBest = coef4;
+
+          coef5SecondBest = coef5;
+
+          coef6SecondBest = coef6;
+
+          coef7SecondBest = coef7;
+        }
         coef1 = PSO(coef1Best, coef1SecondBest);
         coef2 = PSO(coef2Best, coef2SecondBest);
         coef3 = PSO(coef3Best, coef3SecondBest);
@@ -841,9 +858,9 @@
         playing = false;
         numberOfIterations--;
         if (numberOfIterations > 0) {
-          //updateCoefficients();
+          updateCoefficients();
           logCoefficients();
-          //play();
+          play();
         } else logCoefficientsBest();
       }
 
